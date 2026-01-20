@@ -1,16 +1,21 @@
+import type { ResumeData } from "../types";
 import { GoogleGenAI, Type } from "@google/genai";
-import { ResumeData } from "../types";
 
+/**
+ * Service to parse raw resume text and enhance it using Google's Gemini AI.
+ */
 export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData> => {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY || (process.env as any).API_KEY;
+  // Use a robust way to access environment variables across different environments (Vite/Node)
+  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY ||
+    (globalThis as any).process?.env?.GEMINI_API_KEY ||
+    (globalThis as any).process?.env?.API_KEY;
 
-  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY' || apiKey === 'undefined') {
     throw new Error("API Key not found or is still set to placeholder. Please check your .env.local file and restart your development server.");
   }
 
-  // Initialize Gemini Client Lazily
-  const ai = new GoogleGenAI({ apiKey: apiKey });
-
+  // Initialize Gemini Client Lazily with the retrieved API Key
+  const genAI = new GoogleGenAI(apiKey);
   const modelId = "gemini-1.5-flash";
 
   const systemInstruction = `
@@ -35,11 +40,14 @@ export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData
     Output Schema must match the provided structure exactly.
   `;
 
-  const response = await ai.models.generateContent({
+  const model = genAI.getGenerativeModel({
     model: modelId,
-    contents: rawText,
-    config: {
-      systemInstruction: systemInstruction,
+    systemInstruction: systemInstruction,
+  });
+
+  const response = await model.generateContent({
+    contents: [{ role: 'user', parts: [{ text: rawText }] }],
+    generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
@@ -107,7 +115,7 @@ export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData
     },
   });
 
-  const textResponse = response.text;
+  const textResponse = response.response.text();
   if (!textResponse) {
     throw new Error("Failed to generate resume data: The AI response was empty.");
   }
