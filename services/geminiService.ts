@@ -1,17 +1,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { ResumeData } from "../types";
 
-const apiKey = process.env.API_KEY;
-
 export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData> => {
-  if (!apiKey) {
-    throw new Error("API Key not found in environment variables.");
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || (process.env as any).GEMINI_API_KEY || (process.env as any).API_KEY;
+
+  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+    throw new Error("API Key not found or is still set to placeholder. Please check your .env.local file and restart your development server.");
   }
 
   // Initialize Gemini Client Lazily
   const ai = new GoogleGenAI({ apiKey: apiKey });
 
-  const modelId = "gemini-1.5-flash"; // Updated to stable model ID
+  const modelId = "gemini-1.5-flash";
 
   const systemInstruction = `
     You are an expert JSON data extractor and professional resume architect. Your primary goal is to **ALWAYS** output a **VALID JSON object** that strictly adheres to the provided schema.
