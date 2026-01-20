@@ -1,142 +1,28 @@
 import type { ResumeData } from "../types";
-import { GoogleGenAI, Type } from "@google/genai";
 
 /**
  * Service to parse raw resume text and enhance it using Google's Gemini AI.
+ * This calls a server-side API route to keep the API key secure.
  */
 export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData> => {
-  // Use a robust way to access environment variables across different environments (Vite/Node)
-  const apiKey = (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-    (globalThis as any).process?.env?.GEMINI_API_KEY ||
-    (globalThis as any).process?.env?.API_KEY;
-
-  if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY' || apiKey === 'undefined') {
-    throw new Error("API Key not found or is still set to placeholder. Please check your .env.local file and restart your development server.");
-  }
-
-  // Initialize Gemini Client Lazily with the retrieved API Key
-  const genAI = new GoogleGenAI(apiKey);
-  const modelId = "gemini-1.5-flash";
-
-  const systemInstruction = `
-    You are an expert JSON data extractor and professional resume architect. Your primary goal is to **ALWAYS** output a **VALID JSON object** that strictly adheres to the provided schema.
-
-    Your task is to analyze the raw, potentially messy or unformatted resume text provided by the user and extract all relevant information into the specified JSON format.
-
-    CRITICAL INSTRUCTIONS:
-    1. **Preservation:** DO NOT skip or omit any work experience, education, or reference mentioned in the raw text. Ensure every entry is accounted for.
-    2. **Accuracy:** Correct typos and grammatical errors (e.g., 'acadamics' -> 'Academics', 'CAtmon' -> 'Catmon', 'ornganize' -> 'organized', 'Domesitc' -> 'Domestic'). Ensure names are capitalized correctly (e.g., 'Shermine Leyma Moena').
-    3. **Categorization:** 
-       - If you see "Housekeeping NC II" or similar certifications, include them under the 'education' array as a 'degree'.
-       - Separate work history into the 'experience' array.
-       - Separate schools/certifications into the 'education' array.
-       - Qualifications should be split into individual strings in the 'skills' array.
-    4. **Dates:** Format dates consistently (e.g., "Oct 2019 - Dec 2019", "2008 - 2011").
-    5. **Objective:** Generate a short, compelling professional objective based on the person's history (Domestic Helper, Housekeeping, etc.) if requested or if it's currently generic/placeholder. Ensure it's concise and impactful.
-    6. **Description Formatting:** For 'experience.description', if bullet points are detected, ensure they are represented as a single string where each bullet point is separated by a newline character. If no specific bullet points are given, a brief summary of responsibilities can be generated based on the role.
-    7. **Response Format:** Return ONLY the JSON object. No preamble, no markdown blocks.
-    8. **IDs:** Generate stable, unique IDs for each list item (e.g., "exp-0", "edu-0", "ref-0").
-
-    Output Schema must match the provided structure exactly.
-  `;
-
-  const model = genAI.getGenerativeModel({
-    model: modelId,
-    systemInstruction: systemInstruction,
-  });
-
-  const response = await model.generateContent({
-    contents: [{ role: 'user', parts: [{ text: rawText }] }],
-    generationConfig: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          personalInfo: {
-            type: Type.OBJECT,
-            properties: {
-              name: { type: Type.STRING },
-              email: { type: Type.STRING },
-              phone: { type: Type.STRING },
-              address: { type: Type.STRING },
-            },
-            required: ["name", "email", "phone", "address"],
-          },
-          objective: { type: Type.STRING },
-          experience: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                title: { type: Type.STRING },
-                company: { type: Type.STRING },
-                location: { type: Type.STRING },
-                dates: { type: Type.STRING },
-                description: { type: Type.STRING },
-              },
-              required: ["id", "title", "company", "dates"],
-            },
-          },
-          education: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                school: { type: Type.STRING },
-                degree: { type: Type.STRING },
-                dates: { type: Type.STRING },
-                location: { type: Type.STRING },
-              },
-              required: ["id", "school", "degree", "dates"],
-            },
-          },
-          skills: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-          },
-          references: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                id: { type: Type.STRING },
-                name: { type: Type.STRING },
-                contact: { type: Type.STRING },
-                relation: { type: Type.STRING },
-              },
-              required: ["id", "name", "contact"],
-            },
-          },
-        },
-        required: ["personalInfo", "objective", "experience", "education", "skills", "references"],
-      },
-    },
-  });
-
-  const textResponse = response.response.text();
-  if (!textResponse) {
-    throw new Error("Failed to generate resume data: The AI response was empty.");
-  }
-
   try {
-    const parsedData = JSON.parse(textResponse) as ResumeData;
+    const response = await fetch('/api/generate-resume', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ rawText }),
+    });
 
-    // Ensure all required arrays exist
-    parsedData.experience = Array.isArray(parsedData.experience) ? parsedData.experience : [];
-    parsedData.education = Array.isArray(parsedData.education) ? parsedData.education : [];
-    parsedData.skills = Array.isArray(parsedData.skills) ? parsedData.skills : [];
-    parsedData.references = Array.isArray(parsedData.references) ? parsedData.references : [];
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to generate resume');
+    }
 
-    // Map unique IDs if missing
-    parsedData.experience = parsedData.experience.map((e, i) => ({ ...e, id: e.id || `exp-${i}` }));
-    parsedData.education = parsedData.education.map((e, i) => ({ ...e, id: e.id || `edu-${i}` }));
-    parsedData.references = parsedData.references.map((e, i) => ({ ...e, id: e.id || `ref-${i}` }));
-
-    return parsedData;
-  } catch (e: any) {
-    console.error("JSON Parsing Error:", e);
-    throw new Error(`The AI response was not valid JSON. Details: ${e.message}`);
+    const data = await response.json();
+    return data as ResumeData;
+  } catch (error: any) {
+    console.error('Resume generation error:', error);
+    throw new Error(error.message || 'Failed to generate resume. Please try again.');
   }
 };
