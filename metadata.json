@@ -1,0 +1,5 @@
+{
+  "name": "JVJ Resume System",
+  "description": "A comprehensive resume builder allowing users to input data via AI or manual form, choose from multiple professional templates, and export as PDF.",
+  "requestFramePermissions": []
+}
