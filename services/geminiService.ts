@@ -3,16 +3,16 @@ import { ResumeData } from "../types";
 
 const apiKey = process.env.API_KEY;
 
-// Initialize Gemini Client
-const ai = new GoogleGenAI({ apiKey: apiKey });
-
 export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData> => {
   if (!apiKey) {
     throw new Error("API Key not found in environment variables.");
   }
 
-  const modelId = "gemini-3-flash-preview";
-  
+  // Initialize Gemini Client Lazily
+  const ai = new GoogleGenAI({ apiKey: apiKey });
+
+  const modelId = "gemini-1.5-flash"; // Updated to stable model ID
+
   const systemInstruction = `
     You are an expert JSON data extractor and professional resume architect. Your primary goal is to **ALWAYS** output a **VALID JSON object** that strictly adheres to the provided schema.
 
@@ -114,7 +114,7 @@ export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData
 
   try {
     const parsedData = JSON.parse(textResponse) as ResumeData;
-    
+
     // Ensure all required arrays exist
     parsedData.experience = Array.isArray(parsedData.experience) ? parsedData.experience : [];
     parsedData.education = Array.isArray(parsedData.education) ? parsedData.education : [];
@@ -125,7 +125,7 @@ export const parseAndEnhanceResume = async (rawText: string): Promise<ResumeData
     parsedData.experience = parsedData.experience.map((e, i) => ({ ...e, id: e.id || `exp-${i}` }));
     parsedData.education = parsedData.education.map((e, i) => ({ ...e, id: e.id || `edu-${i}` }));
     parsedData.references = parsedData.references.map((e, i) => ({ ...e, id: e.id || `ref-${i}` }));
-    
+
     return parsedData;
   } catch (e: any) {
     console.error("JSON Parsing Error:", e);
