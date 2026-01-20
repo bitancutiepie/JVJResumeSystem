@@ -26,7 +26,7 @@ export default async function handler(req: Request) {
 
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({
-            model: "gemini-1.5-flash",
+            model: "gemini-2.0-flash-exp",
             systemInstruction: `
         You are an expert JSON data extractor and professional resume architect. Your primary goal is to **ALWAYS** output a **VALID JSON object** that strictly adheres to the provided schema.
 
