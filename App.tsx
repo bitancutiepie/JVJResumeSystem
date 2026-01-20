@@ -63,7 +63,7 @@ const App: React.FC = () => {
   }, [selectedInputMethod, showWelcomeScreen]);
 
   useEffect(() => {
-    setResumeData(prev => ({
+    setResumeData((prev: ResumeData) => ({
       ...prev,
       personalInfo: { ...prev.personalInfo, photo: userPhoto }
     }));
@@ -146,8 +146,8 @@ const App: React.FC = () => {
     }
   };
 
-  const updatePersonalInfo = (field: string, value: string) => {
-    setResumeData(prev => ({
+  const updatePersonalInfo = (field: keyof ResumeData['personalInfo'], value: string) => {
+    setResumeData((prev: ResumeData) => ({
       ...prev,
       personalInfo: { ...prev.personalInfo, [field]: value }
     }));
@@ -165,25 +165,25 @@ const App: React.FC = () => {
     const id = `${type}-${Date.now()}`;
     if (type === 'experience') {
       const newItem: Experience = { id, title: '', company: '', location: '', dates: '', description: '' };
-      setResumeData(prev => ({ ...prev, experience: [...prev.experience, newItem] }));
+      setResumeData((prev: ResumeData) => ({ ...prev, experience: [...prev.experience, newItem] }));
     } else if (type === 'education') {
       const newItem: Education = { id, school: '', degree: '', dates: '', location: '' };
-      setResumeData(prev => ({ ...prev, education: [...prev.education, newItem] }));
+      setResumeData((prev: ResumeData) => ({ ...prev, education: [...prev.education, newItem] }));
     } else {
       const newItem: Reference = { id, name: '', contact: '', relation: '' };
-      setResumeData(prev => ({ ...prev, references: [...prev.references, newItem] }));
+      setResumeData((prev: ResumeData) => ({ ...prev, references: [...prev.references, newItem] }));
     }
   };
 
   const updateItem = (type: 'experience' | 'education' | 'references', id: string, field: string, value: string) => {
-    setResumeData(prev => ({
+    setResumeData((prev: ResumeData) => ({
       ...prev,
       [type]: (prev[type] as any[]).map(item => item.id === id ? { ...item, [field]: value } : item)
     }));
   };
 
   const removeItem = (type: 'experience' | 'education' | 'references', id: string) => {
-    setResumeData(prev => ({
+    setResumeData((prev: ResumeData) => ({
       ...prev,
       [type]: (prev[type] as any[]).filter(item => item.id !== id)
     }));
@@ -329,7 +329,7 @@ const App: React.FC = () => {
           <section className="space-y-4">
             <div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 tracking-tight">Work Experience</h3><button onClick={() => addItem('experience')} className="text-blue-600 font-bold hover:text-blue-700 transition-colors">+ Add Entry</button></div>
             <div className="space-y-4">
-              {resumeData.experience.map(exp => (
+              {resumeData.experience.map((exp: Experience) => (
                 <div key={exp.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg relative group transition-colors hover:border-slate-300">
                   <button onClick={() => removeItem('experience', exp.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"><i className="fas fa-trash-can"></i></button>
                   <input placeholder="Job Title" value={exp.title} onChange={e => updateItem('experience', exp.id, 'title', e.target.value)} className="form-input mb-2 font-semibold" />
@@ -347,7 +347,7 @@ const App: React.FC = () => {
           <section className="space-y-4">
             <div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 tracking-tight">Education</h3><button onClick={() => addItem('education')} className="text-blue-600 font-bold hover:text-blue-700 transition-colors">+ Add Entry</button></div>
             <div className="space-y-4">
-              {resumeData.education.map(edu => (
+              {resumeData.education.map((edu: Education) => (
                 <div key={edu.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg relative group transition-colors hover:border-slate-300">
                   <button onClick={() => removeItem('education', edu.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"><i className="fas fa-trash-can"></i></button>
                   <input placeholder="Degree / Certification" value={edu.degree} onChange={e => updateItem('education', edu.id, 'degree', e.target.value)} className="form-input mb-2 font-semibold" />
@@ -364,7 +364,7 @@ const App: React.FC = () => {
           <section className="space-y-4">
             <h3 className="text-xl font-bold text-slate-800 mb-2 tracking-tight">Skills & Qualifications</h3>
             <p className="text-sm text-slate-600 mb-2">Enter your skills or certifications, one per line.</p>
-            <textarea value={resumeData.skills.join('\n')} onChange={e => setResumeData(prev => ({ ...prev, skills: e.target.value.split('\n').filter(s => s.trim()) }))} className="form-input min-h-[200px]" placeholder="E.g. Housekeeping&#10;First Aid Certified&#10;Fast Learner"></textarea>
+            <textarea value={resumeData.skills.join('\n')} onChange={e => setResumeData((prev: ResumeData) => ({ ...prev, skills: e.target.value.split('\n').filter(s => s.trim()) }))} className="form-input min-h-[200px]" placeholder="E.g. Housekeeping&#10;First Aid Certified&#10;Fast Learner"></textarea>
           </section>
         );
       case 'references':
@@ -372,7 +372,7 @@ const App: React.FC = () => {
           <section className="space-y-4">
             <div className="flex justify-between items-center"><h3 className="text-xl font-bold text-slate-800 tracking-tight">Character References</h3><button onClick={() => addItem('references')} className="text-blue-600 font-bold hover:text-blue-700 transition-colors">+ Add Entry</button></div>
             <div className="space-y-4">
-              {resumeData.references.map(ref => (
+              {resumeData.references.map((ref: Reference) => (
                 <div key={ref.id} className="p-4 bg-slate-50 border border-slate-200 rounded-lg relative group transition-colors hover:border-slate-300">
                   <button onClick={() => removeItem('references', ref.id)} className="absolute top-2 right-2 text-red-500 hover:text-red-700 transition-colors"><i className="fas fa-trash-can"></i></button>
                   <input placeholder="Full Name" value={ref.name} onChange={e => updateItem('references', ref.id, 'name', e.target.value)} className="form-input mb-2 font-semibold" />
