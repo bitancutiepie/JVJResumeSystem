@@ -80,7 +80,7 @@ const App: React.FC = () => {
     try {
       const textToUse = overriddenText !== undefined ? overriddenText : rawInput;
       const enhancedData = await parseAndEnhanceResume(textToUse);
-      
+
       setResumeData({
         ...enhancedData,
         personalInfo: {
@@ -106,7 +106,7 @@ const App: React.FC = () => {
 
   const extractTextFromFile = async (file: File): Promise<string> => {
     const fileType = file.type;
-    
+
     if (fileType === 'application/pdf') {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
@@ -207,6 +207,88 @@ const App: React.FC = () => {
       setIsDownloading(false);
       window.print();
     }
+  };
+
+  const handleDownloadDocx = async () => {
+    const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, SectionType } = await import('docx');
+    const { saveAs } = await import('file-saver');
+
+    const doc = new Document({
+      sections: [{
+        properties: { type: SectionType.CONTINUOUS },
+        children: [
+          // Header / Personal Info
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: resumeData.personalInfo.name || "YOUR NAME", bold: true, size: 32 }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: `${resumeData.personalInfo.email} | ${resumeData.personalInfo.phone}`, size: 20 }),
+            ],
+          }),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            children: [
+              new TextRun({ text: resumeData.personalInfo.address, size: 20 }),
+            ],
+          }),
+
+          // Objective
+          new Paragraph({ text: "PROFESSIONAL SUMMARY", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+          new Paragraph({ children: [new TextRun({ text: resumeData.objective })] }),
+
+          // Experience
+          new Paragraph({ text: "WORK EXPERIENCE", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+          ...resumeData.experience.flatMap(exp => [
+            new Paragraph({
+              children: [
+                new TextRun({ text: exp.title, bold: true }),
+                new TextRun({ text: ` - ${exp.company}`, italized: true }),
+              ]
+            }),
+            new Paragraph({
+              children: [new TextRun({ text: `${exp.dates} | ${exp.location}`, size: 18, color: "666666" })]
+            }),
+            new Paragraph({
+              children: [new TextRun({ text: exp.description })],
+              spacing: { after: 200 }
+            })
+          ]),
+
+          // Education
+          new Paragraph({ text: "EDUCATION", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+          ...resumeData.education.flatMap(edu => [
+            new Paragraph({
+              children: [
+                new TextRun({ text: edu.degree, bold: true }),
+                new TextRun({ text: ` - ${edu.school}`, italized: true }),
+              ]
+            }),
+            new Paragraph({
+              children: [new TextRun({ text: `${edu.dates} | ${edu.location}`, size: 18, color: "666666" })]
+            }),
+          ]),
+
+          // Skills
+          new Paragraph({ text: "SKILLS & QUALIFICATIONS", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+          new Paragraph({ text: resumeData.skills.join(", ") }),
+
+          // References
+          new Paragraph({ text: "REFERENCES", heading: HeadingLevel.HEADING_2, spacing: { before: 400 } }),
+          ...resumeData.references.flatMap(ref => [
+            new Paragraph({ children: [new TextRun({ text: ref.name, bold: true })] }),
+            new Paragraph({ children: [new TextRun({ text: `${ref.relation} | ${ref.contact}`, size: 18 })] }),
+          ]),
+        ],
+      }],
+    });
+
+    const blob = await Packer.toBlob(doc);
+    saveAs(blob, `${(resumeData.personalInfo.name || 'resume').replace(/\s+/g, '_')}_Resume.docx`);
   };
 
   const handleNextFormStep = () => {
@@ -325,6 +407,10 @@ const App: React.FC = () => {
                 {isDownloading ? <i className="fas fa-circle-notch fa-spin"></i> : <i className="fas fa-download"></i>}
                 <span className="hidden sm:inline">Export PDF</span>
               </button>
+              <button onClick={handleDownloadDocx} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 shadow-sm">
+                <i className="fas fa-file-word"></i>
+                <span className="hidden sm:inline">Export DOCX</span>
+              </button>
               <button onClick={handleResetAppAndMode} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center gap-2 shadow-sm">
                 <i className="fas fa-rotate-left"></i>
                 <span className="hidden sm:inline">Switch Mode</span>
@@ -363,7 +449,7 @@ const App: React.FC = () => {
                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl shadow-sm">
                   <h3 className="text-xs font-bold text-blue-900 uppercase tracking-widest mb-2">Document Import</h3>
                   <p className="text-xs text-blue-800 mb-4 leading-relaxed font-medium">Upload a previous resume file (PDF/DOCX) or paste your information. AI will refine the text and suggest a style.</p>
-                  
+
                   <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".pdf,.docx" className="hidden" />
                   <button
                     onClick={() => fileInputRef.current?.click()}
@@ -426,13 +512,13 @@ const App: React.FC = () => {
                 <div className="grid grid-cols-1 gap-3">
                   {['classic', 'modern', 'contemporary', 'harvard'].map((template) => (
                     <button key={template} onClick={() => setSelectedTemplate(template)} className={`block w-full p-4 rounded-xl border-2 transition-all text-left group ${selectedTemplate === template ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-md' : 'border-slate-100 bg-white hover:border-slate-300'}`}>
-                          <div className="flex items-center gap-4">
-                            <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${selectedTemplate === template ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
-                              <i className="fas fa-file-invoice"></i>
-                            </div>
-                            <span className="font-bold capitalize text-lg">{template}</span>
-                          </div>
-                        </button>
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${selectedTemplate === template ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400 group-hover:bg-slate-200'}`}>
+                          <i className="fas fa-file-invoice"></i>
+                        </div>
+                        <span className="font-bold capitalize text-lg">{template}</span>
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
